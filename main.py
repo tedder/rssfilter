@@ -142,7 +142,7 @@ def do_config(config):
     rssfile = do_feed(feedcfg)
     dest = S3_OUTPUT_PREFIX + feedcfg['output']
     rss_bucket.new_key(dest).set_contents_from_file(rssfile, reduced_redundancy=True, rewind=True, headers={'Content-Type': 'application/rss+xml', 'Cache-Control':'max-age=600,public'}, policy='public-read')
-    print "wrote feed to %s" % dest
+    #print "wrote feed to %s" % dest
 
 def read_config(s3, bucket=None, key=None, url=None):
   if bucket and key:
