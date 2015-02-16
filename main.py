@@ -84,22 +84,32 @@ def stringify(blob):
 def rule_matches(entry, rule):
   # content can be a list/dict/etc, so it needs some help.
   contentstr = stringify(entry.get('content')).lower()
-  titlestr = entry.get('title', '').lower()
-  summarystr = entry.get('summary', '').lower()
-  linkstr = entry.get('link', '').lower()
+  titlestr = entry.get('title', '').encode('utf-8').lower()
+  summarystr = entry.get('summary', '').encode('utf-8').lower()
+  linkstr = entry.get('link', '').encode('utf-8').lower()
+
+  #print "title: %s" % titlestr
 
   if rule[0] == '/':
     # regex. trim off leading/trailing /slash/
     rex = rule.strip('/')
     if re.search(rex, titlestr) or re.search(rex, summarystr) or re.search(rex, contentstr) or re.search(rex, linkstr):
       return True
-  elif rule in titlestr or rule in summarystr or rule in contentstr or rule in linkstr:
+  #elif rule in titlestr or rule in summarystr or rule in contentstr or rule in linkstr:
+  elif rule in titlestr:
+    return True
+  elif rule in summarystr:
+    return True
+  elif rule in contentstr:
+    return True
+  elif rule in linkstr:
     return True
   return False
 
 def item_matches(entry, rules):
   for rule in rules:
-    if rule_matches(entry, rule):
+    if rule_matches(entry, rule.encode('utf-8')):
+      #print "rule '%s' matched entry: %s" % (rule.decode('utf-8'), entry.decode('utf-8'))
       return True
   return False
 
