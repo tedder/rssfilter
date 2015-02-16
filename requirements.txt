@@ -1,5 +1,5 @@
 requests
-json
+boto
 speedparser>=0.2.0
 chardet>=2.3.0
 PyRSS2Gen==1.1
