@@ -2,6 +2,7 @@
 
 import re
 import json
+import boto
 import requests
 import speedparser
 import yaml
@@ -14,12 +15,35 @@ dthandler = lambda obj: calendar.timegm(obj) if isinstance(obj, time.struct_time
 
 def do_feed(config):
   req = requests.get(config['url'])
-  #print req.text
   feed = speedparser.parse(req.content, clean_html=True) #, encoding='UTF-8')
-  #print "feed: %s" % json.dumps(feed, default=dthandler, indent=2)
-  #feed['feed']['entries']
-  #title, summary, content
-  #print str(*feed)
+
+  entries = feed['entries']
+  for filterset in config['filter']:
+    filter_type, filter_rules = filterset.popitem()
+    if filter_type == 'include':
+      entries = filter_include(entries, filter_rules)
+    elif filter_type == 'exclude':
+      entries = filter_exclude(entries, filter_rules)
+    else:
+      raise "can only handle include/exclude filter types. being asked to process %s" % filter_type
+
+  items = []
+  # convert the entries to RSSItems, build the list we'll stick in the RSS..
+  for entry in entries:
+    item = PyRSS2Gen.RSSItem(
+      title = entry.get('title'),
+      link = entry.get('link'),
+      description = entry.get('description'),
+      author = entry.get('author'),
+      categories = entry.get('categories'),
+      comments = entry.get('comments'),
+      enclosure = entry.get('enclosure'),
+      guid = entry.get('guid'),
+      pubDate = entry.get('pubDate'),
+      source = entry.get('source'),
+    )
+    items.append(item)
+
   rss = PyRSS2Gen.RSS2(
     title = feed['feed'].get('title'),
     link = feed['feed'].get('link'),
@@ -29,29 +53,13 @@ def do_feed(config):
     categories = feed['feed'].get('categories'),
     ttl = feed['feed'].get('ttl'),
     image = feed['feed'].get('image'),
+    items = items
   )
-
-  #print json.dumps(feed)
-  print config['filter']
-  entries = feed['entries']
-  for filterset in config['filter']:
-    filter_type, filter_rules = filterset.popitem()
-    print "start entry count: %g" % len(entries)
-    if filter_type == 'include':
-      entries = filter_include(entries, filter_rules)
-    elif filter_type == 'exclude':
-      entries = filter_exclude(entries, filter_rules)
-    else:
-      raise "can only handle include/exclude filter types. being asked to process %s" % filter_type
-    print "  end entry count: %g" % len(entries)
-    #print "filter_set: %s / %s" % (filter_type, filter_rules)
-
-  print "final entry count: %g" % len(entries)
 
   rssfile = StringIO.StringIO()
   rss.write_xml(rssfile)
   rssfile.seek(0)
-  #print rssfile.read()
+  return rssfile
 
 def stringify(blob):
   retstr = ''
@@ -76,7 +84,7 @@ def rule_matches(entry, rule):
   titlestr = entry.get('title', '').lower()
   summarystr = entry.get('summary', '').lower()
   linkstr = entry.get('link', '').lower()
-  #print "content: %s" % contentstr
+
   if rule[0] == '/':
     # regex. trim off leading/trailing /slash/
     rex = rule.strip('/')
@@ -94,29 +102,58 @@ def item_matches(entry, rules):
 
 def filter_include(entries, rules):
   # only include items that match. all others will be removed.
-  print "hello include"
   newlist = []
   for entry in entries:
     if item_matches(entry, rules):
-      print "entry: %s" % entry
       newlist.append(entry)
   return newlist
 
 def filter_exclude(entries, rules):
   # include all items unless they match.
-  print "hello exclude"
   newlist = []
   for entry in entries:
-    #print "entry: %s" % entry
     if not item_matches(entry, rules):
       newlist.append(entry)
   return newlist
 
-with open("test.yml", "r") as f:
-  config = yaml.load(f)
+def do_include(includeurl):
+  if includeurl.startswith('http'):
+    read_config(s3, url=includeurl)
+    
+  elif includeurl.startswith('s3'):
+    match = re.search('s3://([^\/]+)\/(.+)', includeurl)
+    bucket = match.group(0)
+    key = match.group(1)
+    read_config(s3, bucket=bucket, key=key)
+  else:
+    raise "did not recognize include url format. either http[s]:// or s3:// please."
 
-print config
-for feedcfg in config:
-  do_feed(feedcfg)
 
+def do_config(config):
+  rss_bucket = s3.get_bucket('dyn.tedder.me')
+  for feedcfg in config:
+    # pull off non-feed config entries first.
+    if feedcfg.get('include'):
+      feedcfg['include']
+
+    rssfile = do_feed(feedcfg)
+    dest = feedcfg['output']
+    rss_bucket.new_key(dest).set_contents_from_file(rssfile, reduced_redundancy=True, rewind=True, headers={'Content-Type': 'application/rss+xml'})
+    print "wrote feed to %s" % dest
+
+def read_config(s3, bucket=None, key=None, url=None):
+  if bucket and key:
+    bucket = s3.get_bucket('tedder')
+    config_file = bucket.get_key('rss/main_list.yml').get_contents_as_string()
+  elif url:
+    config_file = requests.get(url).text
+  else:
+    raise "need s3 or http details for config"
+
+  config = yaml.load(config_file)
+  do_config(config)
+
+
+s3 = boto.connect_s3()
+read_config(s3, 'tedder', 'rss/main_list.yml')
 
