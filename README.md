@@ -22,11 +22,10 @@ The following examples show my personal usage. I've removed a private URL.
         - soup
         - /daily.show/
         - "category: top gear (uk)"
-        - /saturday.night.live/
-        - /shark.tank/
-        - /nightly.show/
         - mythbusters
-        - /at.midnight/
+        - cats
+        exclude:
+        - /8.out.of.10.cats/
       output: ted/feed.rss
     - url: http://gdata.youtube.com/feeds/base/users/BuzzFeedVideo/uploads?alt=rss&v=2&orderby=published&client=ytapi-youtube-profile
       filter:
