@@ -11,7 +11,10 @@ import time
 import PyRSS2Gen
 import StringIO
 
-dthandler = lambda obj: calendar.timegm(obj) if isinstance(obj, time.struct_time) else json.JSONEncoder().default(obj)
+S3_OUTPUT_BUCKET = 'dyn.tedder.me'
+S3_OUTPUT_PREFIX = '/rss_filter/'
+
+#dthandler = lambda obj: calendar.timegm(obj) if isinstance(obj, time.struct_time) else json.JSONEncoder().default(obj)
 
 def do_feed(config):
   req = requests.get(config['url'])
@@ -130,14 +133,14 @@ def do_include(includeurl):
 
 
 def do_config(config):
-  rss_bucket = s3.get_bucket('dyn.tedder.me')
+  rss_bucket = s3.get_bucket(S3_OUTPUT_BUCKET)
   for feedcfg in config:
     # pull off non-feed config entries first.
     if feedcfg.get('include'):
       feedcfg['include']
 
     rssfile = do_feed(feedcfg)
-    dest = feedcfg['output']
+    dest = S3_OUTPUT_PREFIX + feedcfg['output']
     rss_bucket.new_key(dest).set_contents_from_file(rssfile, reduced_redundancy=True, rewind=True, headers={'Content-Type': 'application/rss+xml', 'Cache-Control':'max-age=600,public'}, policy='public-read')
     print "wrote feed to %s" % dest
 
