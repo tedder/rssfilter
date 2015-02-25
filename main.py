@@ -21,14 +21,19 @@ def do_feed(config):
   feed = speedparser.parse(req.content, clean_html=True) #, encoding='UTF-8')
 
   entries = feed['entries']
+  #print "entries: " + str(entries)[:100]
   for filterset in config['filter']:
     filter_type, filter_rules = filterset.popitem()
     if filter_type == 'include':
       entries = filter_include(entries, filter_rules)
     elif filter_type == 'exclude':
       entries = filter_exclude(entries, filter_rules)
+    elif filter_type == 'transform':
+      #print "transforming, rules: " + str(filter_rules)
+      #print "transforming, entries: " + str(entries)[:100]
+      entries = transform(entries, filter_rules)
     else:
-      raise "can only handle include/exclude filter types. being asked to process %s" % filter_type
+      raise Exception("can only handle include/exclude filter types. being asked to process %s" % filter_type)
 
   items = []
   # convert the entries to RSSItems, build the list we'll stick in the RSS..
@@ -112,6 +117,17 @@ def item_matches(entry, rules):
       #print "rule '%s' matched entry: %s" % (rule.decode('utf-8'), entry.decode('utf-8'))
       return True
   return False
+
+def transform(entries, rules):
+  for entry in entries:
+    for rule in rules:
+    #for 
+      if not rule: break
+      xform_type, xform_find, xform_replace = rule
+      if xform_type == 'link_to_description':
+        desclink = re.sub(xform_find, xform_replace, entry['link'])
+        entry['summary'] += """<p /><a href="%s">description</a>""" % desclink
+  return entries
 
 def filter_include(entries, rules):
   # only include items that match. all others will be removed.
