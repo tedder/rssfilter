@@ -17,7 +17,11 @@ S3_OUTPUT_PREFIX = '/rss_filter/'
 #dthandler = lambda obj: calendar.timegm(obj) if isinstance(obj, time.struct_time) else json.JSONEncoder().default(obj)
 
 def do_feed(config):
-  req = requests.get(config['url'])
+  try:
+    req = requests.get(config['url'])
+  except requests.exceptions.ConnectionError:
+    print("URL connection fail: " + config['url'])
+    return
   feed = speedparser.parse(req.content, clean_html=True) #, encoding='UTF-8')
 
   entries = feed['entries']
