@@ -173,6 +173,7 @@ def do_config(config):
 
     try:
       rssfile = do_feed(feedcfg)
+      if not rssfile: continue
       dest = S3_OUTPUT_PREFIX + feedcfg['output']
       rss_bucket.new_key(dest).set_contents_from_file(rssfile, reduced_redundancy=True, rewind=True, headers={'Content-Type': 'application/rss+xml', 'Cache-Control':'max-age=600,public'}, policy='public-read')
     except requests.exceptions.ConnectionError:
