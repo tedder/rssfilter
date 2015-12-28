@@ -75,7 +75,9 @@ def do_feed(config):
 
 def stringify(blob):
   retstr = ''
-  if isinstance(blob, list):
+  if not blob:
+    return retstr
+  elif isinstance(blob, list):
     for e in blob:
       retstr += stringify(e)
   elif isinstance(blob, dict):
@@ -87,7 +89,7 @@ def stringify(blob):
   elif isinstance(blob, unicode):
     retstr += blob.encode('utf8')
   else:
-    raise "unknown type: %s" % type(blob)
+    raise Exception("unknown type: %s" % str(type(blob)))
   return retstr
 
 def rule_matches(entry, rule):
@@ -169,9 +171,14 @@ def do_config(config):
     if feedcfg.get('include'):
       feedcfg['include']
 
-    rssfile = do_feed(feedcfg)
-    dest = S3_OUTPUT_PREFIX + feedcfg['output']
-    rss_bucket.new_key(dest).set_contents_from_file(rssfile, reduced_redundancy=True, rewind=True, headers={'Content-Type': 'application/rss+xml', 'Cache-Control':'max-age=600,public'}, policy='public-read')
+    try:
+      rssfile = do_feed(feedcfg)
+      dest = S3_OUTPUT_PREFIX + feedcfg['output']
+      rss_bucket.new_key(dest).set_contents_from_file(rssfile, reduced_redundancy=True, rewind=True, headers={'Content-Type': 'application/rss+xml', 'Cache-Control':'max-age=600,public'}, policy='public-read')
+    except requests.exceptions.ConnectionError:
+      if 'baconbits' in feedcfg['url']:
+        return
+      print("failed to get feed: " + feedcfg['url'])
     #print "wrote feed to %s" % dest
 
 def read_config(s3, bucket=None, key=None, url=None):
