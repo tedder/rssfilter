@@ -20,7 +20,8 @@ def do_feed(config):
   try:
     req = requests.get(config['url'])
   except requests.exceptions.ConnectionError:
-    print("URL connection fail: " + config['url'])
+    if 'baconbits' not in config['url']:
+      print("URL connection fail: " + config['url'])
     return
   feed = speedparser.parse(req.content, clean_html=True) #, encoding='UTF-8')
 
