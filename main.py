@@ -12,7 +12,7 @@ import PyRSS2Gen
 import StringIO
 
 S3_OUTPUT_BUCKET = 'dyn.tedder.me'
-S3_OUTPUT_PREFIX = '/rss_filter/'
+S3_OUTPUT_PREFIX = 'rss_filter/'
 
 #dthandler = lambda obj: calendar.timegm(obj) if isinstance(obj, time.struct_time) else json.JSONEncoder().default(obj)
 
