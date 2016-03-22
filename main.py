@@ -2,7 +2,7 @@
 
 import re
 import json
-import boto
+import boto3
 import requests
 import speedparser
 import yaml
@@ -185,8 +185,9 @@ def do_config(config):
 
 def read_config(s3, bucket=None, key=None, url=None):
   if bucket and key:
-    bucket = s3.get_bucket('tedder')
-    config_file = bucket.get_key('rss/main_list.yml').get_contents_as_string()
+    config_file = s3.get_object(Bucket='tedder', Key='rss/main_list.yml')['Body'].read().decode('utf-8')
+    #bucket = s3.get_bucket('tedder')
+    #config_file = bucket.get_key('rss/main_list.yml').get_contents_as_string()
   elif url:
     config_file = requests.get(url).text
   else:
@@ -196,6 +197,6 @@ def read_config(s3, bucket=None, key=None, url=None):
   do_config(config)
 
 
-s3 = boto.connect_s3()
+s3 = boto3.client('s3')
 read_config(s3, 'tedder', 'rss/main_list.yml')
 
