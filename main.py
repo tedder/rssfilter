@@ -166,7 +166,6 @@ def do_include(includeurl):
 
 
 def do_config(config):
-  rss_bucket = s3.get_bucket(S3_OUTPUT_BUCKET)
   for feedcfg in config:
     # pull off non-feed config entries first.
     if feedcfg.get('include'):
@@ -176,7 +175,7 @@ def do_config(config):
       rssfile = do_feed(feedcfg)
       if not rssfile: continue
       dest = S3_OUTPUT_PREFIX + feedcfg['output']
-      rss_bucket.new_key(dest).set_contents_from_file(rssfile, reduced_redundancy=True, rewind=True, headers={'Content-Type': 'application/rss+xml', 'Cache-Control':'max-age=600,public'}, policy='public-read')
+      s3.put_object(Bucket=S3_OUTPUT_BUCKET, Key=dest, Body=rssfile, StorageClass='REDUCED_REDUNDANCY', ContentType='application/rss+xml', CacheControl='max-age=600,public', ACL='public-read')
     except requests.exceptions.ConnectionError:
       if 'baconbits' in feedcfg['url']:
         return
@@ -197,6 +196,6 @@ def read_config(s3, bucket=None, key=None, url=None):
   do_config(config)
 
 
-s3 = boto3.client('s3')
+s3 = boto3.client('s3', region_name='us-west-2')
 read_config(s3, 'tedder', 'rss/main_list.yml')
 
