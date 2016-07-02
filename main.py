@@ -1,15 +1,20 @@
 #!/usr/bin/python
+# coding:utf-8
 
+from __future__ import unicode_literals
 import re
-import json
 import boto3
 import requests
+#import speedparser
 import speedparser
 import yaml
-import calendar
-import time
 import PyRSS2Gen
-import StringIO
+from io import BytesIO
+
+# py3 doesn't have a unicode type or method, which makes it difficult to write
+# unicode-variable-containing code that is compatible with both. Finally found
+# this: http://python-future.org/compatible_idioms.html#unicode
+from builtins import str as unicode
 
 S3_OUTPUT_BUCKET = 'dyn.tedder.me'
 S3_OUTPUT_PREFIX = 'rss_filter/'
@@ -19,14 +24,15 @@ S3_OUTPUT_PREFIX = 'rss_filter/'
 def do_feed(config):
   try:
     req = requests.get(config['url'])
+    #print(req.content)
   except requests.exceptions.ConnectionError:
     if 'baconbits' not in config['url']:
       print("URL connection fail: " + config['url'])
     return
-  feed = speedparser.parse(req.content, clean_html=True) #, encoding='UTF-8')
+  feed = speedparser.parse(req.content, clean_html=True, encoding='UTF-8')
 
   entries = feed['entries']
-  #print "entries: " + str(entries)[:100]
+  #print("entries: " + str(entries)[:100])
   for filterset in config['filter']:
     filter_type, filter_rules = filterset.popitem()
     if filter_type == 'include':
@@ -35,7 +41,7 @@ def do_feed(config):
       entries = filter_exclude(entries, filter_rules)
     elif filter_type == 'transform':
       #print "transforming, rules: " + str(filter_rules)
-      #print "transforming, entries: " + str(entries)[:100]
+      #print("transforming, entries: " + str(entries)[:100])
       entries = transform(entries, filter_rules)
     else:
       raise Exception("can only handle include/exclude filter types. being asked to process %s" % filter_type)
@@ -69,33 +75,40 @@ def do_feed(config):
     items = items
   )
 
-  rssfile = StringIO.StringIO()
+  rssfile = BytesIO()
   rss.write_xml(rssfile)
   rssfile.seek(0)
   return rssfile
 
+def safe_unicode(blob):
+  return unicode(blob, 'utf8')
+
 def stringify(blob):
   retstr = ''
   if not blob:
-    return retstr
+    return '' # we were passed nothing, so return nothing
   elif isinstance(blob, list):
     for e in blob:
       retstr += stringify(e)
   elif isinstance(blob, dict):
-    for k,v in blob.iteritems():
-      retstr += stringify(k)
-      retstr += stringify(v)
+    for k,v in blob.items():
+      retstr += stringify(unicode(k))
+      #print(type(retstr), type(v), v)
+      retstr += stringify(unicode(v))
   elif isinstance(blob, str):
-    retstr += blob
+    retstr += unicode(blob)
+  elif isinstance(blob, bytes):
+    retstr += unicode(blob)
   elif isinstance(blob, unicode):
-    retstr += blob.encode('utf8')
+    retstr += blob
   else:
     raise Exception("unknown type: %s" % str(type(blob)))
+
   return retstr
 
 def rule_matches(entry, rule):
   # content can be a list/dict/etc, so it needs some help.
-  contentstr = stringify(entry.get('content')).lower()
+  contentstr = stringify(entry.get('content')).encode('utf-8').lower()
   titlestr = entry.get('title', '').encode('utf-8').lower()
   summarystr = entry.get('summary', '').encode('utf-8').lower()
   linkstr = entry.get('link', '').encode('utf-8').lower()
@@ -127,6 +140,7 @@ def item_matches(entry, rules):
 
 def transform(entries, rules):
   for entry in entries:
+    #print(entry)
     for rule in rules:
     #for 
       if not rule: break
@@ -134,6 +148,11 @@ def transform(entries, rules):
       if xform_type == 'link_to_description':
         desclink = re.sub(xform_find, xform_replace, entry['link'])
         entry['summary'] += """<p /><a href="%s">description</a>""" % desclink
+      elif xform_type == 'description':
+        #print("desc: {}".format(entry['description']))
+        #print("replacing {} with {}".format(xform_find, xform_replace))
+        entry['description'] = re.sub(xform_find, xform_replace, entry['description'])
+        #print("output: {}".format(entry['description']))
   return entries
 
 def filter_include(entries, rules):
@@ -182,20 +201,26 @@ def do_config(config):
       print("failed to get feed: " + feedcfg['url'])
     #print "wrote feed to %s" % dest
 
-def read_config(s3, bucket=None, key=None, url=None):
+def read_config(s3, bucket=None, key=None, url=None, filename=None):
   if bucket and key:
     config_file = s3.get_object(Bucket='tedder', Key='rss/main_list.yml')['Body'].read().decode('utf-8')
     #bucket = s3.get_bucket('tedder')
     #config_file = bucket.get_key('rss/main_list.yml').get_contents_as_string()
   elif url:
     config_file = requests.get(url).text
+  elif filename:
+    with open(filename) as f:
+      config_file = f.read()
   else:
     raise "need s3 or http details for config"
 
   config = yaml.load(config_file)
+  #print(config)
   do_config(config)
 
 
 s3 = boto3.client('s3', region_name='us-west-2')
 read_config(s3, 'tedder', 'rss/main_list.yml')
+#read_config(s3, filename='yehuda.yml')
+#read_config(s3, filename='baco.yml')
 
