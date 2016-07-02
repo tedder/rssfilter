@@ -5,7 +5,6 @@ from __future__ import unicode_literals
 import re
 import boto3
 import requests
-#import speedparser
 import speedparser
 import yaml
 import PyRSS2Gen
@@ -104,6 +103,7 @@ def stringify(blob):
   else:
     raise Exception("unknown type: %s" % str(type(blob)))
 
+  #print(retstr)
   return retstr
 
 def rule_matches(entry, rule):
@@ -113,7 +113,8 @@ def rule_matches(entry, rule):
   summarystr = entry.get('summary', '').encode('utf-8').lower()
   linkstr = entry.get('link', '').encode('utf-8').lower()
 
-  #print "title: %s" % titlestr
+  #print("title: {}".format(titlestr))
+  #print("con: %s".format(contentstr))
 
   if rule[0] == '/':
     # regex. trim off leading/trailing /slash/
@@ -126,6 +127,7 @@ def rule_matches(entry, rule):
   elif rule in summarystr:
     return True
   elif rule in contentstr:
+    #print(contentstr)
     return True
   elif rule in linkstr:
     return True
