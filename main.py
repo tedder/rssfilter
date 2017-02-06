@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python2
 # coding:utf-8
 
 from __future__ import unicode_literals
@@ -32,7 +32,7 @@ def do_feed(config):
 
   entries = feed['entries']
   #print("entries: " + str(entries)[:100])
-  for filterset in config['filter']:
+  for filterset in config.get('filter', []):
     filter_type, filter_rules = filterset.popitem()
     if filter_type == 'include':
       entries = filter_include(entries, filter_rules)
