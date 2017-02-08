@@ -8,6 +8,7 @@ import requests
 import speedparser
 import yaml
 import PyRSS2Gen
+import HTMLParser
 from io import BytesIO
 
 # py3 doesn't have a unicode type or method, which makes it difficult to write
@@ -45,16 +46,18 @@ def do_feed(config):
     else:
       raise Exception("can only handle include/exclude filter types. being asked to process %s" % filter_type)
 
+  pars = HTMLParser.HTMLParser()
+
   items = []
   # convert the entries to RSSItems, build the list we'll stick in the RSS..
   for entry in entries:
     item = PyRSS2Gen.RSSItem(
-      title = entry.get('title'),
-      link = entry.get('link'),
-      description = entry.get('description'),
-      author = entry.get('author'),
+      title = pars.unescape(entry.get('title', '')),
+      link = pars.unescape(entry.get('link', '')),
+      description = pars.unescape(entry.get('description', '')),
+      author = pars.unescape(entry.get('author', '')),
       categories = entry.get('categories'),
-      comments = entry.get('comments'),
+      comments = pars.unescape(entry.get('comments', '')),
       enclosure = entry.get('enclosure'),
       guid = entry.get('guid'),
       pubDate = entry.get('pubDate'),
@@ -63,9 +66,9 @@ def do_feed(config):
     items.append(item)
 
   rss = PyRSS2Gen.RSS2(
-    title = feed['feed'].get('title'),
-    link = feed['feed'].get('link'),
-    description = feed['feed'].get('description'),
+    title = pars.unescape(feed['feed'].get('title', '')),
+    link = pars.unescape(feed['feed'].get('link', '')),
+    description = pars.unescape(feed['feed'].get('description', '')),
     pubDate = feed['feed'].get('pubDate'),
     lastBuildDate = feed['feed'].get('lastBuildDate'),
     categories = feed['feed'].get('categories'),
