@@ -51,6 +51,7 @@ def do_feed(config):
   items = []
   # convert the entries to RSSItems, build the list we'll stick in the RSS..
   for entry in entries:
+    #print(pars.unescape(entry.get('title', '').encode('utf-8')))
     item = PyRSS2Gen.RSSItem(
       title = pars.unescape(entry.get('title', '')),
       link = pars.unescape(entry.get('link', '')),
@@ -65,6 +66,9 @@ def do_feed(config):
     )
     items.append(item)
 
+  #print("xx", pars.unescape(feed['feed'].get('title', '')))
+  #print(pars.unescape(feed['feed'].get('link', '')))
+  #print(config['output'])
   rss = PyRSS2Gen.RSS2(
     title = pars.unescape(feed['feed'].get('title', '')),
     link = pars.unescape(feed['feed'].get('link', '')),
