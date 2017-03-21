@@ -7,6 +7,7 @@ import boto3
 import requests
 import speedparser
 import yaml
+import ssl
 import PyRSS2Gen
 import HTMLParser
 from io import BytesIO
@@ -28,6 +29,9 @@ def do_feed(config):
   except requests.exceptions.ConnectionError:
     if 'baconbits' not in config['url']:
       print("URL connection fail: " + config['url'])
+    return
+  except ssl.SSLError:
+    print("SSL URL connection fail: " + config['url'])
     return
   feed = speedparser.parse(req.content, clean_html=True, encoding='UTF-8')
 
@@ -207,7 +211,10 @@ def do_config(config):
     except requests.exceptions.ConnectionError:
       if 'baconbits' in feedcfg['url']:
         return
-      print("failed to get feed: " + feedcfg['url'])
+      print("failed to get feed: " + feedcfg['url'] + "\n" + str(e))
+    except requests.exceptions.ChunkedEncodingError as e:
+      print("failed to get feed: " + feedcfg['url'] + "\n" + str(e))
+
     #print "wrote feed to %s" % dest
 
 def read_config(s3, bucket=None, key=None, url=None, filename=None):
