@@ -207,7 +207,7 @@ def do_config(config):
       rssfile = do_feed(feedcfg)
       if not rssfile: continue
       dest = S3_OUTPUT_PREFIX + feedcfg['output']
-      s3.put_object(Bucket=S3_OUTPUT_BUCKET, Key=dest, Body=rssfile, StorageClass='REDUCED_REDUNDANCY', ContentType='application/rss+xml', CacheControl='max-age=600,public', ACL='public-read')
+      s3.put_object(Bucket=S3_OUTPUT_BUCKET, Key=dest, Body=rssfile, ContentType='application/rss+xml', CacheControl='max-age=1800,public', ACL='public-read')
     except requests.exceptions.ConnectionError:
       if 'baconbits' in feedcfg['url']:
         return
@@ -237,6 +237,4 @@ def read_config(s3, bucket=None, key=None, url=None, filename=None):
 
 s3 = boto3.client('s3', region_name='us-west-2')
 read_config(s3, 'tedder', 'rss/main_list.yml')
-#read_config(s3, filename='yehuda.yml')
-#read_config(s3, filename='baco.yml')
 
