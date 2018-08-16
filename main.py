@@ -9,7 +9,7 @@ import speedparser
 import yaml
 import ssl
 import PyRSS2Gen
-import HTMLParser
+import html
 from io import BytesIO
 
 # py3 doesn't have a unicode type or method, which makes it difficult to write
@@ -50,19 +50,17 @@ def do_feed(config):
     else:
       raise Exception("can only handle include/exclude filter types. being asked to process %s" % filter_type)
 
-  pars = HTMLParser.HTMLParser()
-
   items = []
   # convert the entries to RSSItems, build the list we'll stick in the RSS..
   for entry in entries:
-    #print(pars.unescape(entry.get('title', '').encode('utf-8')))
+    #print(html.unescape(entry.get('title', '').encode('utf-8')))
     item = PyRSS2Gen.RSSItem(
-      title = pars.unescape(entry.get('title', '')),
-      link = pars.unescape(entry.get('link', '')),
-      description = pars.unescape(entry.get('description', '')),
-      author = pars.unescape(entry.get('author', '')),
+      title = html.unescape(entry.get('title', '')),
+      link = html.unescape(entry.get('link', '')),
+      description = html.unescape(entry.get('description', '')),
+      author = html.unescape(entry.get('author', '')),
       categories = entry.get('categories'),
-      comments = pars.unescape(entry.get('comments', '')),
+      comments = html.unescape(entry.get('comments', '')),
       enclosure = entry.get('enclosure'),
       guid = entry.get('guid'),
       pubDate = entry.get('pubDate'),
@@ -70,13 +68,13 @@ def do_feed(config):
     )
     items.append(item)
 
-  #print("xx", pars.unescape(feed['feed'].get('title', '')))
-  #print(pars.unescape(feed['feed'].get('link', '')))
+  #print("xx", html.unescape(feed['feed'].get('title', '')))
+  #print(html.unescape(feed['feed'].get('link', '')))
   #print(config['output'])
   rss = PyRSS2Gen.RSS2(
-    title = pars.unescape(feed['feed'].get('title', '')),
-    link = pars.unescape(feed['feed'].get('link', '')),
-    description = pars.unescape(feed['feed'].get('description', '')),
+    title = html.unescape(feed['feed'].get('title', '')),
+    link = html.unescape(feed['feed'].get('link', '')),
+    description = html.unescape(feed['feed'].get('description', '')),
     pubDate = feed['feed'].get('pubDate'),
     lastBuildDate = feed['feed'].get('lastBuildDate'),
     categories = feed['feed'].get('categories'),
