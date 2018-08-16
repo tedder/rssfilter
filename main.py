@@ -155,10 +155,12 @@ def transform(entries, rules):
   for entry in entries:
     #print(entry)
     for rule in rules:
-    #for 
+    #for
       if not rule: break
       xform_type, xform_find, xform_replace = rule
-      if xform_type == 'link_to_description':
+      if xform_type == 'regex_link':
+        entry['link'] = re.sub(xform_find, xform_replace, entry['link'])
+      elif xform_type == 'link_to_description':
         desclink = re.sub(xform_find, xform_replace, entry['link'])
         entry['summary'] += """<p /><a href="%s">description</a>""" % desclink
       elif xform_type == 'description':
