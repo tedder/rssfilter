@@ -1,10 +1,10 @@
-requests>=2.6.0
-urllib3>=1.1.0
+#chardet<3.0.0
+#urllib3<1.2.3 # https://github.com/kennethreitz/requests/issues/4949#issuecomment-457158123
+urllib3 >= 1.21.1, <= 1.24
+chardet >= 3.0.2, < 3.1.0
+requests>=2.21.0
 boto3
-#speedparser>=0.2.0
 https://github.com/tedder/speedparser/archive/master.zip
-chardet>=2.3.0
 PyRSS2Gen==1.1
-pyaml
+pyyaml>=5.1
 future
-

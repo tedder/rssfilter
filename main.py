@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # coding:utf-8
 
 from __future__ import unicode_literals
@@ -8,14 +8,20 @@ import requests
 import speedparser
 import yaml
 import ssl
+import sys
 import PyRSS2Gen
 import html
+from html.parser import HTMLParser
 from io import BytesIO
 
 # py3 doesn't have a unicode type or method, which makes it difficult to write
 # unicode-variable-containing code that is compatible with both. Finally found
 # this: http://python-future.org/compatible_idioms.html#unicode
 from builtins import str as unicode
+
+DEBUG = 0
+if len(sys.argv) > 1 and sys.argv[1] == 'debug':
+  DEBUG = 1
 
 S3_OUTPUT_BUCKET = 'dyn.tedder.me'
 S3_OUTPUT_PREFIX = 'rss_filter/'
@@ -24,8 +30,14 @@ S3_OUTPUT_PREFIX = 'rss_filter/'
 
 def do_feed(config):
   try:
-    req = requests.get(config['url'])
+    if DEBUG: print("pulling url: {}".format(config['url']))
+    req = requests.get(config['url'], timeout=20)
+    if DEBUG: print("pulled")
     #print(req.content)
+  except requests.exceptions.ReadTimeout:
+    if 'bitmetv' not in config['url'] and 'portlandtribune' not in config['url']:
+      print("URL timeout: " + config['url'])
+    return
   except requests.exceptions.ConnectionError:
     if 'baconbits' not in config['url']:
       print("URL connection fail: " + config['url'])
@@ -49,6 +61,8 @@ def do_feed(config):
       entries = transform(entries, filter_rules)
     else:
       raise Exception("can only handle include/exclude filter types. being asked to process %s" % filter_type)
+
+  #pars = HTMLParser()
 
   items = []
   # convert the entries to RSSItems, build the list we'll stick in the RSS..
@@ -204,6 +218,7 @@ def do_config(config):
       feedcfg['include']
 
     try:
+      if DEBUG: print("starting config entry")
       rssfile = do_feed(feedcfg)
       if not rssfile: continue
       dest = S3_OUTPUT_PREFIX + feedcfg['output']
@@ -230,11 +245,13 @@ def read_config(s3, bucket=None, key=None, url=None, filename=None):
   else:
     raise "need s3 or http details for config"
 
-  config = yaml.load(config_file)
+  config = yaml.load(config_file, Loader=yaml.FullLoader)
   #print(config)
-  do_config(config)
+  if DEBUG: print("haz config")
+  return config
 
 
 s3 = boto3.client('s3', region_name='us-west-2')
-read_config(s3, 'tedder', 'rss/main_list.yml')
+conf = read_config(s3, 'tedder', 'rss/main_list.yml')
+do_config(conf)
 
