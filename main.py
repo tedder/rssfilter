@@ -172,6 +172,8 @@ def transform(entries, rules):
       xform_type, xform_find, xform_replace = rule
       if xform_type == 'regex_link':
         entry['link'] = re.sub(xform_find, xform_replace, entry['link'])
+      elif xform_type == 'comments_to_link' and entry.get('comments'):
+        entry['link'] = entry['comments']
       elif xform_type == 'link_to_description':
         desclink = re.sub(xform_find, xform_replace, entry['link'])
         entry['summary'] += """<p /><a href="%s">description</a>""" % desclink
