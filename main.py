@@ -169,7 +169,12 @@ def transform(entries, rules):
     for rule in rules:
     #for
       if not rule: break
-      xform_type, xform_find, xform_replace = rule
+      (xform_type, xform_find, xform_replace) = [None, None, None]
+      if len(rule) == 1:
+        (xform_type) = rule
+      else:
+        (xform_type, xform_find, xform_replace) = rule
+
       if xform_type == 'regex_link':
         entry['link'] = re.sub(xform_find, xform_replace, entry['link'])
       elif xform_type == 'comments_to_link' and entry.get('comments'):
