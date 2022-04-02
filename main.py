@@ -26,12 +26,15 @@ if len(sys.argv) > 1 and sys.argv[1] == 'debug':
 S3_OUTPUT_BUCKET = 'dyn.tedder.me'
 S3_OUTPUT_PREFIX = 'rss_filter/'
 
+session = requests.Session()
+session.headers.update({'User-Agent': 'RSS Filter; ideal.sand3129@notmyna.me'})
+
 #dthandler = lambda obj: calendar.timegm(obj) if isinstance(obj, time.struct_time) else json.JSONEncoder().default(obj)
 
 def do_feed(config):
   try:
     if DEBUG: print("pulling url: {}".format(config['url']))
-    req = requests.get(config['url'], timeout=20)
+    req = session.get(config['url'], timeout=20)
     if DEBUG: print("pulled")
     #print(req.content)
   except requests.exceptions.ReadTimeout:
@@ -45,9 +48,15 @@ def do_feed(config):
   except ssl.SSLError:
     print("SSL URL connection fail: " + config['url'])
     return
-  feed = speedparser.parse(req.content, clean_html=True, encoding='UTF-8')
+  content = req.content #.decode('utf-8')
+  print(content)
+  if DEBUG: print("url content length: ", len(content))
+  feed = speedparser.parse(content, clean_html=True, encoding='UTF-8')
 
+  print(f"keys: {feed.keys()} {len(feed['feed'])}")
+  print(f"{feed['bozo']} // {feed.get('bozo_exception')} {feed.get('bozo_tb')}")
   entries = feed['entries']
+  print(f"entries: {len(entries)}")
   #print("entries: " + str(entries)[:100])
   for filterset in config.get('filter', []):
     filter_type, filter_rules = filterset.popitem()
@@ -62,6 +71,7 @@ def do_feed(config):
     else:
       raise Exception("can only handle include/exclude filter types. being asked to process %s" % filter_type)
 
+  if DEBUG: print(f"done composing, entries: {len(entries)}")
   #pars = HTMLParser()
 
   items = []
@@ -81,7 +91,7 @@ def do_feed(config):
       source = entry.get('source'),
     )
     items.append(item)
-
+    if DEBUG: print(f"done composing, items: {len(items)}")
   #print("xx", html.unescape(feed['feed'].get('title', '')))
   #print(html.unescape(feed['feed'].get('link', '')))
   #print(config['output'])
@@ -177,6 +187,8 @@ def transform(entries, rules):
 
       if xform_type == 'regex_link':
         entry['link'] = re.sub(xform_find, xform_replace, entry['link'])
+      elif xform_type == 'regex_guid':
+        entry['guid'] = re.sub(xform_find, xform_replace, entry['guid'])
       elif xform_type == 'comments_to_link' and entry.get('comments'):
         entry['link'] = entry['comments']
       elif xform_type == 'link_to_description':
@@ -229,7 +241,9 @@ def do_config(config):
       rssfile = do_feed(feedcfg)
       if not rssfile: continue
       dest = S3_OUTPUT_PREFIX + feedcfg['output']
-      s3.put_object(Bucket=S3_OUTPUT_BUCKET, Key=dest, Body=rssfile, ContentType='application/rss+xml', CacheControl='max-age=1800,public', ACL='public-read')
+      if DEBUG: print("pushing to " + dest)
+      #s3.put_object(Bucket=S3_OUTPUT_BUCKET, Key=dest, Body=rssfile, ContentType='application/rss+xml', CacheControl='max-age=1800,public', ACL='public-read')
+      s3.put_object(Bucket=S3_OUTPUT_BUCKET, Key=dest, Body=rssfile, ContentType='text/xml', CacheControl='max-age=1800,public', ACL='public-read')
     except requests.exceptions.ConnectionError:
       if 'baconbits' in feedcfg['url']:
         return
@@ -245,7 +259,7 @@ def read_config(s3, bucket=None, key=None, url=None, filename=None):
     #bucket = s3.get_bucket('tedder')
     #config_file = bucket.get_key('rss/main_list.yml').get_contents_as_string()
   elif url:
-    config_file = requests.get(url).text
+    config_file = session.get(url).text
   elif filename:
     with open(filename) as f:
       config_file = f.read()
