@@ -13,6 +13,7 @@ import PyRSS2Gen
 import html
 from html.parser import HTMLParser
 from io import BytesIO
+import time
 
 # py3 doesn't have a unicode type or method, which makes it difficult to write
 # unicode-variable-containing code that is compatible with both. Finally found
@@ -34,7 +35,12 @@ session.headers.update({'User-Agent': 'RSS Filter; ideal.sand3129@notmyna.me'})
 def do_feed(config):
   try:
     if DEBUG: print("pulling url: {}".format(config['url']))
-    req = session.get(config['url'], timeout=20)
+
+    # they want to be accessed > 2sec, we can afford more
+    if 'reddit' in config['url']: time.sleep(10)
+
+    req = requests.get(config['url'], timeout=20, headers={'user-agent': 'rssfilter 1.1 (by @tedder42 or /u/tedder42 or ted at perljam.net'})
+
     if DEBUG: print("pulled")
     #print(req.content)
   except requests.exceptions.ReadTimeout:
@@ -49,12 +55,12 @@ def do_feed(config):
     print("SSL URL connection fail: " + config['url'])
     return
   content = req.content #.decode('utf-8')
-  print(content)
+  if DEBUG > 1: print(content)
   if DEBUG: print("url content length: ", len(content))
   feed = speedparser.parse(content, clean_html=True, encoding='UTF-8')
 
   print(f"keys: {feed.keys()} {len(feed['feed'])}")
-  print(f"{feed['bozo']} // {feed.get('bozo_exception')} {feed.get('bozo_tb')}")
+  print(f"bozo; {feed.get('bozo')} // {feed.get('bozo_exception')} {feed.get('bozo_tb')}")
   entries = feed['entries']
   print(f"entries: {len(entries)}")
   #print("entries: " + str(entries)[:100])
@@ -71,13 +77,15 @@ def do_feed(config):
     else:
       raise Exception("can only handle include/exclude filter types. being asked to process %s" % filter_type)
 
-  if DEBUG: print(f"done composing, entries: {len(entries)}")
+  if DEBUG: print(f"start composing, entries: {len(entries)}")
   #pars = HTMLParser()
 
   items = []
   # convert the entries to RSSItems, build the list we'll stick in the RSS..
   for entry in entries:
     #print(html.unescape(entry.get('title', '').encode('utf-8')))
+    print(entry.get('title', '').encode('utf8'), entry.get('link', '').encode('utf8'))
+    print(f"{html.unescape(entry.get('title', '')).encode('utf8')} // {html.unescape(entry.get('link', '')).encode('utf8')}")
     item = PyRSS2Gen.RSSItem(
       title = html.unescape(entry.get('title', '')),
       link = html.unescape(entry.get('link', '')),
@@ -91,12 +99,13 @@ def do_feed(config):
       source = entry.get('source'),
     )
     items.append(item)
-    if DEBUG: print(f"done composing, items: {len(items)}")
+    if DEBUG: print(f"done composing loop, items: {len(items)}")
   #print("xx", html.unescape(feed['feed'].get('title', '')))
   #print(html.unescape(feed['feed'].get('link', '')))
   #print(config['output'])
+  feed_title = config.get('feed_title') or feed['feed'].get('title', '')
   rss = PyRSS2Gen.RSS2(
-    title = html.unescape(feed['feed'].get('title', '')),
+    title = html.unescape(feed_title),
     link = html.unescape(feed['feed'].get('link', '')),
     description = html.unescape(feed['feed'].get('description', '')),
     pubDate = feed['feed'].get('pubDate'),
@@ -110,6 +119,7 @@ def do_feed(config):
   rssfile = BytesIO()
   rss.write_xml(rssfile)
   rssfile.seek(0)
+
   return rssfile
 
 def safe_unicode(blob):
